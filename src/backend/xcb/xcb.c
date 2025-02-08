@@ -151,15 +151,18 @@ swl_x11_output_t *swl_x11_output_create(swl_x11_backend_t *x11, const xcb_setup_
 			mask, values);
 
 	uint32_t evid = xcb_generate_id(x11->connection);
-
 	xcb_map_window(x11->connection, out->window);
 	xcb_flush(x11->connection);
 
 	out->common.model = calloc(1, 64);
-	snprintf(out->common.model, 63, "Revision: %d.%d(%d)", setup->protocol_major_version, setup->protocol_minor_version, setup->release_number);
-	out->common.make = strdup(xcb_setup_vendor(setup));
+	out->common.description = calloc(1, 256);
+	out->common.make = calloc(1, 100);
+
+	snprintf(out->common.description, 256, "X11 virtual output on %s", getenv("DISPLAY"));
+	snprintf(out->common.model, 64, "Revision: %d.%d(%d)", setup->protocol_major_version, setup->protocol_minor_version, setup->release_number);
+	snprintf(out->common.make, 100, "Vendor: %s", xcb_setup_vendor(setup));
 	out->common.name = strdup(name);
-	out->common.description = "An X11 virtual window";
+	
 	out->common.width = 640;
 	out->common.height = 480;
 	out->common.scale = 1;

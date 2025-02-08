@@ -28,6 +28,7 @@
 #include <soilleirwl/interfaces/swl_compositor.h>
 #include <soilleirwl/interfaces/swl_xdg_shell.h>
 #include <soilleirwl/interfaces/swl_data_dev_man.h>
+#include <soilleirwl/interfaces/swl_zxdg_output.h>
 
 #include <private/xdg-shell-server.h>
 #include "swl-screenshot-server.h"
@@ -51,6 +52,8 @@ typedef struct soilleir_surface {
 	struct wl_listener commit;
 	struct wl_listener destroy;
 } soilleir_surface_t;
+
+#define IS_WITHIN_BOUNDS(xp, yp, x, y, w, h) (xp >= x && xp <= x + w && yp >= y && yp <= y + h)
 
 swl_client_t *swl_get_client(struct wl_client *client, struct wl_list *list) {
 	swl_client_t *output;
@@ -137,8 +140,7 @@ void soilleir_pointer_motion(void *data, uint32_t mods, int32_t dx, int32_t dy) 
 	wl_list_for_each_safe(toplevel, tmp, &soilleir->surfaces, link) {
 		xdg_surface = wl_resource_get_user_data(toplevel->swl_toplevel->xdg_surface);
 		surface = wl_resource_get_user_data(xdg_surface->wl_surface_res);
-		if(soilleir->xpos >= surface->position.x && soilleir->xpos <= surface->position.x + surface->width &&
-			 soilleir->ypos >= surface->position.y && soilleir->ypos <= surface->position.y + surface->height) {
+		if(IS_WITHIN_BOUNDS(soilleir->xpos, soilleir->ypos, surface->position.x, surface->position.y, surface->width, surface->height)) {
 			found = 1;
 			if(soilleir->active != toplevel) {
 				swl_seat_set_focused_surface_keyboard(soilleir->seat, surface->resource);
@@ -160,18 +162,22 @@ void soilleir_pointer_motion(void *data, uint32_t mods, int32_t dx, int32_t dy) 
 			break;
 		}
 		wl_list_for_each(subsurface, &surface->subsurfaces, link) {
-			if(soilleir->xpos >= surface->position.x + subsurface->position.x &&
-					soilleir->xpos <= surface->position.x + subsurface->position.x + subsurface->surface->width &&
-					soilleir->ypos >= surface->position.y + subsurface->position.y &&
-					soilleir->ypos <= surface->position.y + subsurface->position.y + subsurface->surface->height) {
+			if(IS_WITHIN_BOUNDS(soilleir->xpos, soilleir->ypos, surface->position.x + subsurface->position.x,
+						surface->position.y + subsurface->position.y, subsurface->surface->width, subsurface->surface->height)) {
 				if(soilleir->pointer_surface == subsurface->surface->resource) break;
 				/*todo keyboard*/
 				found = 1;
 				swl_seat_set_focused_surface_pointer(soilleir->seat, subsurface->surface->resource,
 						wl_fixed_from_int(soilleir->xpos - (surface->position.x + subsurface->position.x)), wl_fixed_from_int(soilleir->ypos - (surface->position.y + subsurface->position.y)));
 				soilleir->pointer_surface = subsurface->surface->resource;
+				break;
 			}
 		}
+	}
+
+	if(!found) {
+		soilleir->pointer_surface = NULL;
+		swl_seat_set_focused_surface_pointer(soilleir->seat, NULL, 0, 0);
 	}
 
 	/*Find the client*/
@@ -184,11 +190,6 @@ void soilleir_pointer_motion(void *data, uint32_t mods, int32_t dx, int32_t dy) 
 		}
 	}
 
-
-	if(!found) {
-		soilleir->pointer_surface = NULL;
-		swl_seat_set_focused_surface_pointer(soilleir->seat, NULL, 0, 0);
-	}
 
 	if(soilleir->pointer_surface == NULL || !soilleir->active) {
 		return;
@@ -602,6 +603,8 @@ int main(int argc, char **argv) {
 	soilleir.new_surface.notify = soilleir_new_surface;
 	wl_signal_add(&soilleir.compositor->new_surface, &soilleir.new_surface);
 	soilleir.subcompositor = swl_subcompositor_create(soilleir.display);
+
+	swl_zxdg_output_manager_create(soilleir.display);
 
 	soilleir.seat = swl_seat_create(soilleir.display, soilleir.backend, "seat0", kmap);
 	swl_seat_add_binding(soilleir.seat, SWL_MOD_ALT, XKB_KEY_Escape, soilleir_quit, soilleir.display);

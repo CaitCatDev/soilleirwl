@@ -20,9 +20,11 @@ swl-screenshot-server.h
 swl-screenshot-server.c
 linux-dmabuf-server.h
 linux-dmabuf-server.c
-wl_viewporter.c
-wl_viewporter.h
+wp_viewporter.c
+wp_viewporter.h
 ext-image-capture-source-v1.c
 ext-image-capture-source-v1-server.h
 ext-foreign-toplevel-list-v1-server.h
 ext-foreign-toplevel-list-v1.c
+xdg-output-unstable-v1.c
+xdg-output-unstable-v1-server.h

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include <private/xdg-shell-server.h>
+#include <unistd.h>
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 
