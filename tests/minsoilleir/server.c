@@ -11,10 +11,10 @@
 #include <sys/mman.h>
 #include <sys/socket.h>
 
+#include <wayland-util.h>
+#include <wayland-server.h>
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
-#include <wayland-server.h>
-#include <wayland-util.h>
 
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include <xkbcommon/xkbcommon.h>
@@ -26,6 +26,7 @@
 #include <soilleirwl/interfaces/swl_output.h>
 #include <soilleirwl/interfaces/swl_surface.h>
 #include <soilleirwl/interfaces/swl_compositor.h>
+#include <soilleirwl/cursors/swl_xcursor.h>
 #include <soilleirwl/interfaces/swl_xdg_shell.h>
 #include <soilleirwl/interfaces/swl_data_dev_man.h>
 #include <soilleirwl/interfaces/swl_zxdg_output.h>
@@ -620,6 +621,12 @@ int main(int argc, char **argv) {
 
 	swl_seat_add_pointer_callback(soilleir.seat, soilleir_pointer_motion, &soilleir);
 	swl_seat_add_set_cursor_callback(soilleir.seat, soilleir_set_cursor_callback, &soilleir);
+
+	void *data = swl_open_xcursor(getenv("XCURSOR_THEME"), "left_ptr", 24);
+	swl_renderer_t *renderer = soilleir.backend->BACKEND_GET_RENDERER(soilleir.backend);
+	swl_texture_t *texture = renderer->create_texture(renderer, 32, 32, WL_SHM_FORMAT_ARGB8888, data);
+	
+	soilleir.backend->BACKEND_SET_CURSOR(soilleir.backend, texture, 24, 24, 0, 0);
 
 	wl_list_init(&soilleir.clients);
 	wl_list_init(&soilleir.surfaces);

@@ -3,12 +3,12 @@
 include config.mk
 
 TARGET=libsoilleirwl.so
-COBJS=src/egl.o src/backend/swl/input/libinput.o src/backend/swl/drm/libdrm.o src/backend/swl/hotplug/libudev.o src/backend/swl/sessions/libseat.o src/xdg-shell.o src/logger.o src/interfaces/swl_compositor.o src/interfaces/swl_data_dev_man.o src/backend/xcb/xcb.o src/backend/backend.o src/backend/swl/tty_backend.o src/allocator/gbm.o src/interfaces/swl_seat.o src/interfaces/swl_xdg_shell.o src/ext-image-capture-source-v1.o src/ext-foreign-toplevel-list-v1.o src/xdg-output-unstable-v1.o src/interfaces/swl_zxdg_output.c
+COBJS=src/egl.o src/backend/swl/input/libinput.o src/backend/swl/drm/libdrm.o src/backend/swl/hotplug/libudev.o src/backend/swl/sessions/libseat.o src/xdg-shell.o src/logger.o src/interfaces/swl_compositor.o src/interfaces/swl_data_dev_man.o src/backend/xcb/xcb.o src/backend/backend.o src/backend/swl/tty_backend.o src/allocator/gbm.o src/interfaces/swl_seat.o src/interfaces/swl_xdg_shell.o src/ext-image-capture-source-v1.o src/ext-foreign-toplevel-list-v1.o src/xdg-output-unstable-v1.o src/interfaces/swl_zxdg_output.o src/cursors/swl_xcursor.o
 
 CFILES=src/xdg-shell.c src/ext-image-capture-source-v1.c src/ext-foreign-toplevel-list-v1.c src/xdg-output-unstable-v1.c
 CHEADS=includes/private/xdg-shell-server.h includes/private/xdg-shell-client.h  includes/private/ext-image-capture-source-v1-server.h includes/private/ext-foreign-toplevel-list-v1-server.h includes/private/xdg-output-unstable-v1-server.h
-CLIBSFLAGS=`pkg-config --cflags gbm xkbcommon wayland-server libseat libudev libinput libdrm glesv2 egl xcb xcb-dri3 xcb-present xcb-render xcb-renderutil`
-CLIBS=`pkg-config --libs gbm xkbcommon wayland-server libseat libudev libinput libdrm egl glesv2 xcb xcb-dri3 xcb-present xcb-render xcb-renderutil`
+CLIBSFLAGS=`pkg-config --cflags gbm xkbcommon wayland-server libseat libudev libinput libdrm glesv2 egl xcb xcb-dri3 xcb-present xcb-render xcb-renderutil wayland-cursor`
+CLIBS=`pkg-config --libs gbm xkbcommon wayland-server libseat libudev libinput libdrm egl glesv2 xcb xcb-dri3 xcb-present xcb-render xcb-renderutil wayland-cursor`
 
 all: $(CHEADS) $(CFILES) $(TARGET)
 

@@ -57,7 +57,6 @@ typedef struct swl_drm_backend {
 drmModeCrtc *swl_drm_get_conn_crtc(int fd, drmModeConnector *conn, drmModeRes *res) {
 	drmModeEncoder *encoder = NULL;
 	drmModeCrtc *crtc = NULL;
-
 	if(conn->encoder_id) { /*There is already an encoder setup just use that*/
 		encoder = drmModeGetEncoder(fd, conn->encoder_id);
 	}

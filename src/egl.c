@@ -48,8 +48,10 @@ typedef struct swl_egl_renderer {
 	EGLContext ctx;
 	int drmfd;
 	swl_egl_functions_t funcs;
-	
+
 	swl_egl_renderer_target_t *current;
+	int texture_fbo;
+	
 	GLuint texture_shader; 
 	struct wl_list targets;
 } swl_egl_renderer_t;
@@ -344,6 +346,10 @@ void swl_egl_copy_from_texture(swl_renderer_t *renderer, swl_texture_t *text, vo
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glActiveTexture(GL_TEXTURE0);
 	glDeleteFramebuffers(1, &fbo);
+}
+
+void swl_egl_attach_texture(swl_renderer_t *render, swl_texture_t *texture) {
+	
 }
 
 swl_renderer_target_t *swl_egl_create_target(swl_renderer_t *render, swl_gbm_buffer_t *buffer) {
@@ -682,7 +688,8 @@ swl_renderer_t *swl_egl_renderer_create_by_fd(int drm_fd) {
 	egl->funcs.EGLImageTargetRenderbufferStorageOES = (void *) eglGetProcAddress("glEGLImageTargetRenderbufferStorageOES");
 	PFNGLDEBUGMESSAGECALLBACKKHRPROC debug_callback = (PFNGLDEBUGMESSAGECALLBACKKHRPROC) eglGetProcAddress("glDebugMessageCallbackKHR");
 	PFNGLDEBUGMESSAGECONTROLKHRPROC debug_message_control = (PFNGLDEBUGMESSAGECONTROLKHRPROC) eglGetProcAddress("glDebugMessageControlKHR");
-	
+
+	glGenFramebuffers(1, &egl->texture_fbo);
 	debug_callback(swl_gl_debug_callback, NULL);
 	
 	glEnable(GL_DEBUG_OUTPUT_KHR);
