@@ -13,11 +13,13 @@
 static swl_cursor_t *fallback_cursor(uint32_t size) {
 	swl_warn("Unable to locate cursor falling back to static cursor\n");
 	swl_cursor_t *cursor = calloc(1, sizeof(swl_cursor_t));
+	cursor->images = calloc(1, sizeof(swl_cursor_image_t));
 	uint32_t *data = calloc(4, size * size);
 
-	cursor->pixels = data;
-	cursor->width = size;
-	cursor->height = size;
+	cursor->images->pixels = data;
+	cursor->images->width = size;
+	cursor->images->height = size;
+	cursor->count = 1;
 	for (uint32_t y = 0; y < size; ++y) {
 		for (uint32_t x = 0; x < size; ++x) {
 			data[y * size] = 0xffffffff;
@@ -29,18 +31,42 @@ static swl_cursor_t *fallback_cursor(uint32_t size) {
 	return cursor;
 }
 
-/*TODO: Animations*/
-static swl_cursor_t *create_cursor_from_ximage(xcursor_image_chunk_t *image) {
+static void init_cursor_image_from_ximage(xcursor_image_chunk_t *image, swl_cursor_image_t *cimage) {
+	cimage->height = image->height;
+	cimage->width = image->width;
+	cimage->delay = image->delay;
+	cimage->pixels = calloc(4, cimage->height * cimage->width);
+
+	memcpy(cimage->pixels, image->pixels, 4 * cimage->width * cimage->height);
+}
+
+static swl_cursor_t *create_cursor_from_file_buffer(void *data, uint32_t pref_size) {
+	uint32_t nsize = 0;
+	xcursor_header_t *header = data;
 	swl_cursor_t *cursor = calloc(1, sizeof(swl_cursor_t));
 
-	printf("Image: %dx%d %dms\n", image->width, image->height, image->delay);
+	if(memcmp(&header->magic, XCURSOR_MAGIC, XCURSOR_MAGIC_LEN) != 0) {
+		swl_warn("Opened file but it's not a XCursors file\n");
+		return NULL;
+	}
 
-	cursor->height = image->height;
-	cursor->width = image->width;
-	cursor->pixels = calloc(4, cursor->width * cursor->height);
+	for(uint32_t i = 0; i < header->ntoc; ++i) {
+		if(pref_size == header->toc[i].subtype) {
+			nsize++;
+		}
+	}
 
-	memcpy(cursor->pixels, image->pixels, cursor->height * cursor->width * 4);
+	if(nsize == 0) return NULL;
+	cursor->images = calloc(nsize, sizeof(swl_cursor_image_t));
+	nsize = 0;
+	for(uint32_t i = 0; i < header->ntoc; i++) {
+		if(pref_size == header->toc[i].subtype) {
+			init_cursor_image_from_ximage(data + header->toc[i].position, &cursor->images[nsize]);
+			nsize++;
+		}	
+	}
 
+	cursor->count = nsize;
 	return cursor;
 }
 
@@ -65,19 +91,9 @@ swl_cursor_t *swl_try_xcursor_file(FILE *fp, uint32_t pref_size) {
 		return NULL;
 	}
 
-	/*We never go above pref_size just return the closet but still below or equal to*/
-	for(uint32_t i = 0; i < header->ntoc; ++i) {
-		if(header->toc[i].type == XCURSOR_TYPE_IMAGE && header->toc[i].subtype == pref_size) {
-			swl_cursor_t *cursor;
-			xcursor_image = data + header->toc[i].position;
-			
-			cursor = create_cursor_from_ximage(xcursor_image);
-			return cursor;	
-		}
-	}
-
+	swl_cursor_t *cursor = create_cursor_from_file_buffer(data, pref_size);
 	free(data);
-	return NULL;
+	return cursor;	
 }
 
 swl_cursor_t *swl_open_xcursor(const char *theme, const char *name, uint32_t pref_size) {

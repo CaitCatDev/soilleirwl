@@ -1,9 +1,11 @@
+#pragma once
 /*
  * Based upon man page info from here:
  * https://www.x.org/archive/X11R7.7/doc/man/man3/Xcursor.3.xhtml
  */
 
 #include <stdint.h>
+#include <sys/types.h>
 
 /*ENV VARIABLES:
  * XCURSOR_THEME (This is standard and is used in most Xcursor related stuff
@@ -66,10 +68,18 @@ typedef struct {
 	xcursor_toc_t toc[]; /*Sizeof toc == ntoc*/	
 } xcursor_header_t;
 
-/*TODO Animated Cursors*/
 typedef struct {
 	uint32_t width, height;
+	uint32_t xhot, yhot;
+	uint32_t delay;
+
 	uint32_t *pixels;
+} swl_cursor_image_t;
+
+/*TODO Animated Cursors*/
+typedef struct {
+	swl_cursor_image_t *images;
+	uint32_t count;
 } swl_cursor_t;
 
 swl_cursor_t *swl_open_xcursor(const char *theme, const char *name, uint32_t pref_size);

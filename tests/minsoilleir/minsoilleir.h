@@ -1,10 +1,14 @@
 #pragma once
 
+#include <stdint.h>
+
 #include "./ipc.h"
+#include "soilleirwl/renderer.h"
 
 #include <soilleirwl/interfaces/swl_compositor.h>
 #include <soilleirwl/interfaces/swl_surface.h>
 #include <soilleirwl/interfaces/swl_seat.h>
+#include <soilleirwl/cursors/swl_xcursor.h>
 #include <soilleirwl/backend/backend.h>
 #include <wayland-server-core.h>
 
@@ -41,6 +45,12 @@ typedef struct {
 	server_ipc_sock ipc;
 	struct wl_listener new_surface;
 	struct wl_listener new_xdg_surface;
+
+	swl_cursor_t *cursor;
+	struct wl_event_source *cursor_update;
+	swl_renderer_t *renderer;
+	swl_texture_t *cursor_texture;
+	uint32_t current_frame;
 } soilleir_server_t;
 
 typedef struct {

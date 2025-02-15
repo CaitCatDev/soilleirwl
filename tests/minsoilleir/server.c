@@ -552,6 +552,26 @@ void soilleir_new_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&surface->destroy, &soilleir_surf->destroy);
 }
 
+int soilleir_timer_cursor_update(void *data) {
+	soilleir_server_t *soilleir = data;
+
+	soilleir->current_frame++;
+
+	if(soilleir->current_frame >= soilleir->cursor->count) {
+		soilleir->current_frame = 0;
+	}
+	
+	if(soilleir->cursor_texture) {
+		soilleir->renderer->destroy_texture(soilleir->renderer, soilleir->cursor_texture);
+	}
+
+	soilleir->cursor_texture = soilleir->renderer->create_texture(soilleir->renderer, soilleir->cursor->images[soilleir->current_frame].width, soilleir->cursor->images[soilleir->current_frame].height, WL_SHM_FORMAT_ARGB8888, soilleir->cursor->images[soilleir->current_frame].pixels);
+
+	soilleir->backend->BACKEND_SET_CURSOR(soilleir->backend, soilleir->cursor_texture, 24, 24, 0, 0);
+	wl_event_source_timer_update(soilleir->cursor_update, soilleir->cursor->images[soilleir->current_frame].delay);
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	soilleir_server_t soilleir = {0};
 	struct wl_client *client;
@@ -587,6 +607,7 @@ int main(int argc, char **argv) {
 	}
 
 	soilleir.display = wl_display_create();
+	loop = wl_display_get_event_loop(soilleir.display);
 	setenv("WAYLAND_DISPLAY", wl_display_add_socket_auto(soilleir.display), 1);
 	soilleir_ipc_init(&soilleir);
 
@@ -622,11 +643,17 @@ int main(int argc, char **argv) {
 	swl_seat_add_pointer_callback(soilleir.seat, soilleir_pointer_motion, &soilleir);
 	swl_seat_add_set_cursor_callback(soilleir.seat, soilleir_set_cursor_callback, &soilleir);
 
-	swl_cursor_t *data = swl_open_xcursor(getenv("XCURSOR_THEME"), "left_ptr", 64);
-	swl_renderer_t *renderer = soilleir.backend->BACKEND_GET_RENDERER(soilleir.backend);
-	swl_texture_t *texture = renderer->create_texture(renderer, data->width, data->height, WL_SHM_FORMAT_ARGB8888, data->pixels);
-	
-	soilleir.backend->BACKEND_SET_CURSOR(soilleir.backend, texture, 24, 24, 0, 0);
+	soilleir.cursor = swl_open_xcursor(getenv("XCURSOR_THEME"), "progress", 64);
+	if(soilleir.cursor->count > 1) {
+		soilleir.cursor_update = wl_event_loop_add_timer(loop, soilleir_timer_cursor_update, &soilleir);
+		wl_event_source_timer_update(soilleir.cursor_update, soilleir.cursor->images[0].delay);
+
+	}
+
+	soilleir.renderer = soilleir.backend->BACKEND_GET_RENDERER(soilleir.backend);
+	soilleir.cursor_texture = soilleir.renderer->create_texture(soilleir.renderer, soilleir.cursor->images[0].width, 
+			soilleir.cursor->images[0].height, WL_SHM_FORMAT_ARGB8888, soilleir.cursor->images[0].pixels);
+	soilleir.backend->BACKEND_SET_CURSOR(soilleir.backend, soilleir.cursor_texture, 24, 24, 0, 0);
 
 	wl_list_init(&soilleir.clients);
 	wl_list_init(&soilleir.surfaces);
