@@ -66,4 +66,10 @@ typedef struct {
 	xcursor_toc_t toc[]; /*Sizeof toc == ntoc*/	
 } xcursor_header_t;
 
-void *swl_open_xcursor(const char *theme, const char *name, uint32_t pref_size);
+/*TODO Animated Cursors*/
+typedef struct {
+	uint32_t width, height;
+	uint32_t *pixels;
+} swl_cursor_t;
+
+swl_cursor_t *swl_open_xcursor(const char *theme, const char *name, uint32_t pref_size);

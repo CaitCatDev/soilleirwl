@@ -622,9 +622,9 @@ int main(int argc, char **argv) {
 	swl_seat_add_pointer_callback(soilleir.seat, soilleir_pointer_motion, &soilleir);
 	swl_seat_add_set_cursor_callback(soilleir.seat, soilleir_set_cursor_callback, &soilleir);
 
-	void *data = swl_open_xcursor(getenv("XCURSOR_THEME"), "left_ptr", 24);
+	swl_cursor_t *data = swl_open_xcursor(getenv("XCURSOR_THEME"), "left_ptr", 64);
 	swl_renderer_t *renderer = soilleir.backend->BACKEND_GET_RENDERER(soilleir.backend);
-	swl_texture_t *texture = renderer->create_texture(renderer, 32, 32, WL_SHM_FORMAT_ARGB8888, data);
+	swl_texture_t *texture = renderer->create_texture(renderer, data->width, data->height, WL_SHM_FORMAT_ARGB8888, data->pixels);
 	
 	soilleir.backend->BACKEND_SET_CURSOR(soilleir.backend, texture, 24, 24, 0, 0);
 

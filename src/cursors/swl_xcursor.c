@@ -10,10 +10,14 @@
 #define SWL_XCURSOR_DIRECTORIES "/home/caitlyn/.icons:/usr/share/icons"
 
 
-static void *fallback_cursor(uint32_t size) {
-	swl_warn("Unable to locate cursor falling back to static cursor\n")
+static swl_cursor_t *fallback_cursor(uint32_t size) {
+	swl_warn("Unable to locate cursor falling back to static cursor\n");
+	swl_cursor_t *cursor = calloc(1, sizeof(swl_cursor_t));
 	uint32_t *data = calloc(4, size * size);
 
+	cursor->pixels = data;
+	cursor->width = size;
+	cursor->height = size;
 	for (uint32_t y = 0; y < size; ++y) {
 		for (uint32_t x = 0; x < size; ++x) {
 			data[y * size] = 0xffffffff;
@@ -22,10 +26,25 @@ static void *fallback_cursor(uint32_t size) {
 		}
 	}
 
-	return data;
+	return cursor;
 }
 
-void *swl_try_xcursor_file(FILE *fp, uint32_t pref_size) {
+/*TODO: Animations*/
+static swl_cursor_t *create_cursor_from_ximage(xcursor_image_chunk_t *image) {
+	swl_cursor_t *cursor = calloc(1, sizeof(swl_cursor_t));
+
+	printf("Image: %dx%d %dms\n", image->width, image->height, image->delay);
+
+	cursor->height = image->height;
+	cursor->width = image->width;
+	cursor->pixels = calloc(4, cursor->width * cursor->height);
+
+	memcpy(cursor->pixels, image->pixels, cursor->height * cursor->width * 4);
+
+	return cursor;
+}
+
+swl_cursor_t *swl_try_xcursor_file(FILE *fp, uint32_t pref_size) {
 	long size = 0;
 	void *data, *ret;
 	xcursor_header_t *header;
@@ -47,26 +66,27 @@ void *swl_try_xcursor_file(FILE *fp, uint32_t pref_size) {
 	}
 
 	/*We never go above pref_size just return the closet but still below or equal to*/
-	ret = calloc(4, pref_size * pref_size);
 	for(uint32_t i = 0; i < header->ntoc; ++i) {
 		if(header->toc[i].type == XCURSOR_TYPE_IMAGE && header->toc[i].subtype == pref_size) {
-			__builtin_dump_struct(xcursor_image, &printf);
-			memcpy(ret, xcursor_image->pixels, pref_size * pref_size * 4);
-			break;
+			swl_cursor_t *cursor;
+			xcursor_image = data + header->toc[i].position;
+			
+			cursor = create_cursor_from_ximage(xcursor_image);
+			return cursor;	
 		}
 	}
 
 	free(data);
-	return ret;
+	return NULL;
 }
 
-void *swl_open_xcursor(const char *theme, const char *name, uint32_t pref_size) {
+swl_cursor_t *swl_open_xcursor(const char *theme, const char *name, uint32_t pref_size) {
 	char *search_path = NULL;
 	char *env_path = getenv("XCURSOR_PATH");
 	char *path = NULL;
 	FILE *fp = NULL;
 	uint32_t len = 0;
-	void *data = NULL;
+	swl_cursor_t *data = NULL;
 
 	if(env_path) {
 		len = snprintf(NULL, 0, "%s:%s", env_path, SWL_XCURSOR_DIRECTORIES);
@@ -75,7 +95,6 @@ void *swl_open_xcursor(const char *theme, const char *name, uint32_t pref_size) 
 	} else {
 		search_path = strdup(SWL_XCURSOR_DIRECTORIES);
 	}
-
 
 	char *token = strtok(search_path, ":");
 	while(token) {
@@ -101,7 +120,7 @@ void *swl_open_xcursor(const char *theme, const char *name, uint32_t pref_size) 
 	return fallback_cursor(pref_size);
 }
 
-void *swl_open_xcursor_env() {
+swl_cursor_t *swl_open_xcursor_env() {
 	const char *name = getenv("CURSOR_NAME");
 	const char *theme = getenv("XCURSOR_THEME");
 	uint32_t size = 24;
