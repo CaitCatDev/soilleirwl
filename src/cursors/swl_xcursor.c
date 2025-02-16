@@ -2,6 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <dirent.h>
+#include <unistd.h>
+#include <fcntl.h>
+
 #include <soilleirwl/logger.h>
 #include <soilleirwl/cursors/swl_xcursor.h>
 #include <string.h>
@@ -21,11 +25,12 @@ static swl_cursor_t *fallback_cursor(uint32_t size) {
 	cursor->images->height = size;
 	cursor->count = 1;
 	for (uint32_t y = 0; y < size; ++y) {
-		for (uint32_t x = 0; x < size; ++x) {
-			data[y * size] = 0xffffffff;
-			data[x] = 0xffffffff;
-			data[y * size + y] = 0xffffffff;
-		}
+		data[y * size] = 0xffffffff;
+		data[y * size + y] = 0xffffffff;
+	}
+
+	for(uint32_t x = 0; x < size; x++) {
+		data[x] = 0xffffffff;
 	}
 
 	return cursor;
@@ -40,6 +45,30 @@ static void init_cursor_image_from_ximage(xcursor_image_chunk_t *image, swl_curs
 	memcpy(cimage->pixels, image->pixels, 4 * cimage->width * cimage->height);
 }
 
+static void swl_cursor_init_from_file_buffer(swl_cursor_t *cursor, void *data, uint32_t pref_size) {
+	uint32_t nsize = 0;
+	xcursor_header_t *header = data;
+
+	for(uint32_t i = 0; i < header->ntoc; ++i) {
+		if(pref_size == header->toc[i].subtype) {
+			nsize++;
+		}
+	}
+
+	if(nsize == 0) return;
+	cursor->count = nsize;
+	cursor->images = calloc(nsize, sizeof(swl_cursor_image_t));
+	nsize = 0;
+	for(uint32_t i = 0; i < header->ntoc; i++) {
+		if(pref_size == header->toc[i].subtype) {
+			init_cursor_image_from_ximage(data + header->toc[i].position, &cursor->images[nsize]);
+			nsize++;
+		}	
+	}
+
+
+}
+
 static swl_cursor_t *create_cursor_from_file_buffer(void *data, uint32_t pref_size) {
 	uint32_t nsize = 0;
 	xcursor_header_t *header = data;
@@ -50,23 +79,8 @@ static swl_cursor_t *create_cursor_from_file_buffer(void *data, uint32_t pref_si
 		return NULL;
 	}
 
-	for(uint32_t i = 0; i < header->ntoc; ++i) {
-		if(pref_size == header->toc[i].subtype) {
-			nsize++;
-		}
-	}
+	swl_cursor_init_from_file_buffer(cursor, data, pref_size);
 
-	if(nsize == 0) return NULL;
-	cursor->images = calloc(nsize, sizeof(swl_cursor_image_t));
-	nsize = 0;
-	for(uint32_t i = 0; i < header->ntoc; i++) {
-		if(pref_size == header->toc[i].subtype) {
-			init_cursor_image_from_ximage(data + header->toc[i].position, &cursor->images[nsize]);
-			nsize++;
-		}	
-	}
-
-	cursor->count = nsize;
 	return cursor;
 }
 
@@ -134,6 +148,78 @@ swl_cursor_t *swl_open_xcursor(const char *theme, const char *name, uint32_t pre
 		token = strtok(NULL, ":");
 	}
 	return fallback_cursor(pref_size);
+}
+
+swl_cursor_theme_t *swl_open_xcursor_theme_at(DIR *dir, uint32_t pref_size) {
+	swl_cursor_theme_t *theme = calloc(1, sizeof(swl_cursor_theme_t));
+	struct dirent *entry;
+	uint32_t entries = 0;
+	FILE *fp;
+
+	while((entry = readdir(dir))) {
+		if(entry->d_type != DT_REG && entry->d_type != DT_LNK) continue;
+		entries++;
+	}
+
+	theme->count = entries;
+	theme->cursors = calloc(entries, sizeof(swl_cursor_t *));
+	entries = 0;
+	rewinddir(dir);
+	
+	while((entry = readdir(dir))) {
+		if(entry->d_type != DT_REG && entry->d_type != DT_LNK) continue;
+		int fd = openat(dirfd(dir), entry->d_name, O_RDONLY);
+		fp = fdopen(fd, "r");
+
+		theme->cursors[entries] = swl_try_xcursor_file(fp, pref_size);
+		theme->cursors[entries]->name = strdup(entry->d_name);
+		entries++;
+	}
+	
+	return theme;
+}
+
+swl_cursor_theme_t *swl_open_xcursor_theme(const char *theme, uint32_t pref_size) {
+	char *search_path = NULL;
+	char *env_path = getenv("XCURSOR_PATH");
+	char *path = NULL;
+	DIR *dir = NULL;
+	uint32_t len = 0;
+
+	swl_cursor_t *data = NULL;
+
+	if(env_path) {
+		len = snprintf(NULL, 0, "%s:%s", env_path, SWL_XCURSOR_DIRECTORIES);
+		search_path = calloc(1, len+1);
+		snprintf(search_path, len+1, "%s:%s", env_path, SWL_XCURSOR_DIRECTORIES);
+	} else {
+		search_path = strdup(SWL_XCURSOR_DIRECTORIES);
+	}
+
+	char *token = strtok(search_path, ":");
+	while(token) {
+		len = snprintf(NULL, 0, "%s/%s/cursors", token, theme);
+
+		path = calloc(1, len + 1);
+		snprintf(path, len + 1, "%s/%s/cursors", token, theme);
+		swl_debug("%s\n", path);
+
+
+		dir = opendir(path);
+		if(dir) {
+			return swl_open_xcursor_theme_at(dir, pref_size);
+		}
+		token = strtok(NULL, ":");
+	}
+
+	swl_cursor_theme_t *fallback = calloc(1, sizeof(swl_cursor_theme_t) + sizeof(swl_cursor_t *));
+
+	fallback->cursors = (void*)&fallback[1];
+	fallback->count = 1;
+	fallback->cursors[0] = fallback_cursor(pref_size);
+	fallback->cursors[0]->name = strdup("left_ptr");
+
+	return fallback;
 }
 
 swl_cursor_t *swl_open_xcursor_env() {

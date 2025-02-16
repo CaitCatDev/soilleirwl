@@ -80,6 +80,14 @@ typedef struct {
 typedef struct {
 	swl_cursor_image_t *images;
 	uint32_t count;
+	char *name;/*Corresponds to file name for this cursor*/
 } swl_cursor_t;
 
+typedef struct {
+	swl_cursor_t **cursors;
+	uint32_t count;
+} swl_cursor_theme_t;
+
+swl_cursor_theme_t *swl_open_xcursor_theme(const char *theme, uint32_t pref_size);
 swl_cursor_t *swl_open_xcursor(const char *theme, const char *name, uint32_t pref_size);
+swl_cursor_theme_t *swl_open_xcursor_theme(const char *theme, uint32_t pref_size);

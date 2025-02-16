@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -643,11 +644,20 @@ int main(int argc, char **argv) {
 	swl_seat_add_pointer_callback(soilleir.seat, soilleir_pointer_motion, &soilleir);
 	swl_seat_add_set_cursor_callback(soilleir.seat, soilleir_set_cursor_callback, &soilleir);
 
-	soilleir.cursor = swl_open_xcursor(getenv("XCURSOR_THEME"), "progress", 64);
+	swl_cursor_theme_t *theme = swl_open_xcursor_theme(getenv("XCURSOR_THEME"), 32);
+
+	assert(theme->count != 0);
+	soilleir.cursor = theme->cursors[0];
+	for(uint32_t i = 0; i < theme->count; ++i) {
+		if(strcmp(theme->cursors[i]->name, getenv("CURSOR_NAME") ? getenv("CURSOR_NAME") : "left_ptr") == 0) {
+			soilleir.cursor = theme->cursors[i];
+			break;
+		}
+	}
+
 	if(soilleir.cursor->count > 1) {
 		soilleir.cursor_update = wl_event_loop_add_timer(loop, soilleir_timer_cursor_update, &soilleir);
 		wl_event_source_timer_update(soilleir.cursor_update, soilleir.cursor->images[0].delay);
-
 	}
 
 	soilleir.renderer = soilleir.backend->BACKEND_GET_RENDERER(soilleir.backend);
